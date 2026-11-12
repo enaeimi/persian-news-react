@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { formatDate, timeAgo } from './format';
+import { Pager } from './Pager';
+import { pageCount, type PagerLabels } from './paging';
 import { useNews } from './useNews';
+
+const PAGE_SIZE = 15;
+const LABELS: PagerLabels = { prev: 'قبلی', next: 'بعدی', nav: 'صفحه‌بندی', num: (n: number) => n.toLocaleString('fa-IR') };
 
 export default function App() {
   const { feed, error, loading, reload } = useNews();
@@ -12,6 +17,16 @@ export default function App() {
     if (!q) return feed.items;
     return feed.items.filter((i) => i.title.includes(q) || i.summary.includes(q));
   }, [feed, query]);
+
+  // Paging: back to page 1 when the search changes (but not on auto-refresh).
+  const [paging, setPaging] = useState({ key: query, page: 1 });
+  const pages = pageCount(items.length, PAGE_SIZE);
+  const page = Math.min(paging.key === query ? paging.page : 1, pages);
+  const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const goTo = (p: number) => {
+    setPaging({ key: query, page: p });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="page">
@@ -44,7 +59,7 @@ export default function App() {
       )}
 
       <ul className="list">
-        {items.map((item) => (
+        {pageItems.map((item) => (
           <li key={item.link} className="card">
             {item.image && <img src={item.image} alt="" loading="lazy" />}
             <div>
@@ -61,6 +76,9 @@ export default function App() {
           </li>
         ))}
       </ul>
+
+      <Pager page={page} total={pages} labels={LABELS} onChange={goTo} />
+      {pages > 1 && <p className="pager-info">{`صفحهٔ ${LABELS.num(page)} از ${LABELS.num(pages)}`}</p>}
 
       {feed && items.length === 0 && <p className="meta">خبری یافت نشد.</p>}
 
